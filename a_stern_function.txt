@@ -1,0 +1,90 @@
+# ----------------------------------------
+# Heuristic approach: A* algorithm
+# ----------------------------------------
+
+# Definition der Graphstruktur
+# Graph wird als Dictionary dargestellt:
+# Knoten -> Liste von (Nachbar, Kosten)
+graph = {
+    'A': [('B', 1), ('C', 4)],
+    'B': [('A', 1), ('C', 2), ('D', 5)],
+    'C': [('A', 4), ('B', 2), ('D', 1)],
+    'D': [('B', 5), ('C', 1)]
+}
+
+# Heuristische Werte (h_j)
+h = {
+    'A': 7,
+    'B': 6,
+    'C': 2,
+    'D': 0
+}
+
+# A* Algorithmus
+def a_star(V, graph, h, start, goal):
+    # Initialisierung (1)
+    l = {v: float('inf') for v in V}
+    f = {v: float('inf') for v in V}
+    p = {v: None for v in V}
+
+    l[start] = 0
+    f[start] = h[start]
+
+    T = {start}  # temporäre Labels
+    P = set()     # permanente Labels
+
+    # Hauptschleife (4)
+    while T:
+        # (5) Knoten mit minimalem f_j wählen
+        vi = min(T, key=lambda v: f[v])
+
+        # Wenn Ziel erreicht, abbrechen
+        if vi == goal:
+            break
+
+        # (6) Permanent machen
+        P.add(vi)
+        T.remove(vi)
+
+        # (7) Für alle Nachbarn
+        for vj, cij in graph.get(vi, []):
+            if vj not in T and vj not in P:
+                l[vj] = l[vi] + cij
+                p[vj] = vi
+                f[vj] = l[vj] + h[vj]
+                T.add(vj)
+
+            elif vj in T and (l[vi] + cij < l[vj]):
+                l[vj] = l[vi] + cij
+                p[vj] = vi
+                f[vj] = l[vj] + h[vj]
+
+            elif vj in P and (l[vi] + cij < l[vj]):
+                l[vj] = l[vi] + cij
+                p[vj] = vi
+                f[vj] = l[vj] + h[vj]
+                P.remove(vj)
+                T.add(vj)
+
+    # Pfad zurückverfolgen
+    path = []
+    node = goal
+    while node is not None:
+        path.insert(0, node)
+        node = p[node]
+
+    return path, l[goal]
+
+
+# ----------------------------------------
+# Test des Algorithmus
+# ----------------------------------------
+
+V = list(graph.keys())
+start = 'A'
+goal = 'D'
+
+path, cost = a_star(V, graph, h, start, goal)
+
+print("Optimaler Pfad:", path)
+print("Gesamtkosten:", cost)

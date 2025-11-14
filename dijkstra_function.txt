@@ -1,0 +1,59 @@
+import math
+
+def dijkstra(graph, start):
+    """
+    graph: Dictionary mit Knoten als Keys und Nachbarn als Values.
+           Beispiel:
+           {
+             'A': {'B': 5, 'C': 2},
+             'B': {'D': 4},
+             'C': {'D': 3},
+             'D': {}
+           }
+    start: Startknoten (z. B. 'A')
+    """
+
+    # 1–2: Initialisierung
+    unbesucht = set(graph.keys())   # T
+    distanz = {v: math.inf for v in graph}  # l_j = ∞
+    vorgaenger = {}                 # p_j = v_i
+    distanz[start] = 0              # l_s = 0
+
+    # 3: Solange es unbesuchte Knoten gibt
+    while unbesucht:
+        # 4: Wähle den Knoten mit der kleinsten Distanz
+        aktueller = min(unbesucht, key=lambda v: distanz[v])
+
+        # Wenn der kleinste Wert ∞ ist → Rest ist nicht erreichbar
+        if distanz[aktueller] == math.inf:
+            break
+
+        # 5: Markiere als besucht
+        unbesucht.remove(aktueller)
+
+        # 6–12: Gehe alle Nachbarn durch
+        for nachbar, kosten in graph[aktueller].items():
+            # 7: Wenn Nachbar noch unbesucht ist
+            if nachbar in unbesucht:
+                # 10–11: Prüfe, ob neuer Weg kürzer ist
+                neue_distanz = distanz[aktueller] + kosten
+                if neue_distanz < distanz[nachbar]:
+                    distanz[nachbar] = neue_distanz
+                    vorgaenger[nachbar] = aktueller
+
+    return distanz, vorgaenger
+
+
+# Beispielgraph
+graph = {
+    'A': {'B': 5, 'C': 2},
+    'B': {'D': 4},
+    'C': {'D': 3},
+    'D': {}
+}
+
+# Starte Dijkstra bei A
+distanz, vorgaenger = dijkstra(graph, 'A')
+
+print("Kürzeste Distanzen:", distanz)
+print("Vorgänger:", vorgaenger)
