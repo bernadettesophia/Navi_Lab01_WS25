@@ -3,11 +3,13 @@ import numpy as np
 import pandas as pd
 import math as m
 import time
+import os
 
 
 # import files
-path_data = r"C:\Users\berna\Documents\Studium\GST_2025W\Navigationssysteme_VU\NAVI_Labs\data"
-### anpassen für os.
+path_data = os.path.join(os.path.dirname(__file__), "data")
+
+path_results = os.path.join(os.path.dirname(__file__), "results")
 
 
 ### einlesen mit pandas
@@ -172,9 +174,9 @@ end_time = time.time()
 print(f"Dijkstra Rechenzeit: {end_time - start_time:.4f} Sekunden")
 
 # In DataFrame umwandeln und exportieren
-df_export = pd.DataFrame(export_routes)
-#path_export = r"C:\Users\berna\Documents\Studium\GST_2025W\Navigationssysteme_VU\NAVI_Labs\results"
-df_export.to_csv("dijkstra_routes.csv")
+df_dijkstra = pd.DataFrame(export_routes)
+
+df_dijkstra.to_csv(os.path.join(path_results, "dijkstra_routes.csv"))
 print("Export abgeschlossen: dijkstra_routes.csv")
 
 
@@ -283,9 +285,10 @@ for name, node_id in targets.items():
 end_time = time.time()
 print(f"A* Rechenzeit: {end_time - start_time:.4f} Sekunden")
 
+# export
 df_astar = pd.DataFrame(astar_routes)
-df_astar.to_csv("astar_routes_distance.csv")
-#df_astar.to_csv(path_export + "\\routes_astar_distance_for_qgis.csv", index=False)
+df_astar.to_csv(os.path.join(path_results, "astar_routes_distance.csv"))
+
 print("Export abgeschlossen: astar_routes_distance.csv")
 
 
