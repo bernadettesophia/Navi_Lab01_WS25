@@ -176,8 +176,8 @@ print(f"Dijkstra Rechenzeit: {end_time - start_time:.4f} Sekunden")
 # In DataFrame umwandeln und exportieren
 df_dijkstra = pd.DataFrame(export_routes)
 
-df_dijkstra.to_csv(os.path.join(path_results, "dijkstra_routes.csv"))
-print("Export abgeschlossen: dijkstra_routes.csv")
+#df_dijkstra.to_csv(os.path.join(path_results, "dijkstra_routes.csv"))
+#print("Export abgeschlossen: dijkstra_routes.csv")
 
 
 
@@ -286,18 +286,89 @@ end_time = time.time()
 print(f"A* Rechenzeit: {end_time - start_time:.4f} Sekunden")
 
 # export
+#df_astar = pd.DataFrame(astar_routes)
+#df_astar.to_csv(os.path.join(path_results, "astar_routes_distance.csv"))
+
+#print("Export abgeschlossen: astar_routes_distance.csv")
+
+
+
+# Dijkstra DataFrame erstellen
+df_dijkstra = pd.DataFrame(export_routes)
+df_dijkstra.to_csv(os.path.join(path_results, "dijkstra_routes.csv"))
+print("Export abgeschlossen: dijkstra_routes.csv")
+
+# A* DataFrame erstellen
 df_astar = pd.DataFrame(astar_routes)
 df_astar.to_csv(os.path.join(path_results, "astar_routes_distance.csv"))
-
 print("Export abgeschlossen: astar_routes_distance.csv")
 
+
+
+### functions to calculate length and operations
+
+def calculate_metrics(df, path, cost_col):
+    """Berechnet die Summe der Kantengewichte und Anzahl der Kanten für einen Pfad."""
+    length = 0.0
+    for i in range(len(path)-1):
+        edge = df[(df['from_node'] == path[i]) & (df['to_node'] == path[i+1])]
+        length += edge[cost_col].values[0]
+    operations_count = len(path) - 1
+    return length, operations_count
+
+
+def print_metrics(routes_df):
+    grouped = routes_df.groupby(['target', 'cost_function'])
+    for (target, cost_func), group in grouped:
+        length = group['length'].iloc[0]
+        operations = group['operations'].iloc[0]
+        print(f"Ziel: {target}, Algorithmus: {cost_func}")
+        print(f"  Pfadlänge: {length:.2f}")
+        print(f"  Operationen (Kanten): {operations}")
+        print(f"  Anzahl Knoten im Pfad: {len(group)}\n")
+
+
+# ----------------------------------------
+# Berechnung der Länge und Operationen
+# ----------------------------------------
+
+# Berechnung der Länge und Operationen für Dijkstra
+for cost_col in cost_functions:
+    df_subset = df_dijkstra[df_dijkstra['cost_function'] == cost_col]
+    for target, group in df_subset.groupby('target'):
+        path = group['node_id'].tolist()
+        length, operations = calculate_metrics(df_supermerge, path, cost_col)
+        df_dijkstra.loc[
+            (df_dijkstra['target'] == target) &
+            (df_dijkstra['cost_function'] == cost_col),
+            'length'
+        ] = length
+        df_dijkstra.loc[
+            (df_dijkstra['target'] == target) &
+            (df_dijkstra['cost_function'] == cost_col),
+            'operations'
+        ] = operations
+
+# Berechnung für A*
+for target, group in df_astar.groupby('target'):
+    path = group['node_id'].tolist()
+    length, operations = calculate_metrics(df_supermerge, path, 'distance')
+    df_astar.loc[df_astar['target'] == target, 'length'] = length
+    df_astar.loc[df_astar['target'] == target, 'operations'] = operations
+
+# Jetzt ist print_metrics erlaubt
+print("=== Dijkstra Metriken ===")
+print_metrics(df_dijkstra)
+
+print("=== A* Metriken ===")
+print_metrics(df_astar)
 
 
 
 
 # Sources:
 # https://www.statology.org/pandas-find-closest-value/ -> find nearest node to home coordinates
-# https://www.geeksforgeeks.org/python/python-measure-time-taken-by-program-to-execute/ -> time-mdulde for measure time taken by program to execute
+# https://www.geeksforgeeks.org/python/python-measure-time-taken-by-program-to-execute/ -> time-module for measure time taken by program to execute
 
 
 
