@@ -1,110 +1,145 @@
-# libraries
+"""
+Created by: Hannah Öttl and Bernadette Kakuska
+Date: 15.11.2025
+Course: Navigation Systems (WS2025, GST330UF)
+"""
+
+# import libraries
 import numpy as np
 import pandas as pd
 import math as m
 import time
 import os
 
+start_time_total = time.time()
 
-# import files
+# ----------------------------------------
+# Data import (with pandas)
+# ----------------------------------------
+
+# file paths
 path_data = os.path.join(os.path.dirname(__file__), "data")
-
 path_results = os.path.join(os.path.dirname(__file__), "results")
 
-
-### einlesen mit pandas
-
-# Nodes coordinates
-nodepl = pd.read_csv(path_data + "\\nodepl.txt", delim_whitespace=True, 
+# Node coordinates (geographical coordinates)
+nodepl = pd.read_csv(path_data + "\\nodepl.txt", sep="\s+", 
                      skiprows=0, header=None,
                      names=["lat", "lon"])
 
-# Nodes
-nodelist = pd.read_csv(path_data + "\\nodelist.txt", delim_whitespace=True, 
+# Nodelist
+nodelist = pd.read_csv(path_data + "\\nodelist.txt", sep="\s+", 
                        skiprows=0, header=None,
-                       names=["outgoing_arcs"])  # Index = ID
+                       names=["outgoing_arcs"])
 
-# Arcs mit Kanten
-arclist = pd.read_csv(path_data + "\\arclist.txt", delim_whitespace=True, 
+# Arclist
+arclist = pd.read_csv(path_data + "\\arclist.txt", sep="\s+", 
                       skiprows=0, header=None,
-                      names=["nodes_ID", "time", "distance", "speed_limit", "clazz", "flags"])
+                      names=["to_node", "time", "distance", "speed_limit", "clazz", "flags"])
 
-### Mergiiiiing
-# --- Schritt 0: Nodepl vorbereiten ---
+
+# ----------------------------------------
+# Data preperations
+# ----------------------------------------
+
+# Copy node coordinates, assign 1-based node IDs (python starts with 0), 
+# and set as index for easy access
 nodepl_indexed = nodepl.copy()
-nodepl_indexed['node_id'] = nodepl_indexed.index + 1  # Node IDs beginnen bei 1
+nodepl_indexed['node_id'] = nodepl_indexed.index + 1
 nodepl_indexed.set_index('node_id', inplace=True)
 
-# --- Schritt 1: Startknoten-Spalte in arclist erstellen ---
-nodelist_valid = nodelist.iloc[:-1]
+# make a copy and remove last “imaginary” node 
+nodelist_clean = nodelist.iloc[:-1].copy()
+
+# prepare array to store start nodes for each arc
 arc_to_startnode = np.zeros(len(arclist), dtype=int)
-for i in range(len(nodelist_valid) - 1):
-    start_idx = nodelist_valid.iloc[i, 0] - 1
-    end_idx = nodelist_valid.iloc[i + 1, 0] - 1
-    arc_to_startnode[start_idx:end_idx] = i + 1
-arc_to_startnode[end_idx:] = len(nodelist_valid)
-assert len(arc_to_startnode) == len(arclist), "Arc-Zuordnung passt nicht!"
 
+# assign start node IDs based on cumulative outgoing arcs
+for i in range(len(nodelist_clean) - 1):
+    start_idx = nodelist_clean.iloc[i, 0] - 1       # first arc index of node i
+    end_idx = nodelist_clean.iloc[i + 1, 0] - 1     # first arc index of next node
+    arc_to_startnode[start_idx:end_idx] = i + 1     # node IDs start at 1
+
+# assign remaining arcs to last valid node
+arc_to_startnode[end_idx:] = len(nodelist_clean)
+
+# assign to arclist
 arclist['from_node'] = arc_to_startnode
-arclist['to_node'] = arclist['nodes_ID']
 
-# --- Schritt 2: Start- und Zielknoten-Koordinaten mergen ---
-df_merge_from = arclist.merge(
-    nodepl_indexed, left_on='from_node', right_index=True, how='left'
-).rename(columns={'lat':'lat_from','lon':'lon_from'})
+# Merge start node coordinates
+df_start_n_coord = arclist.merge(
+    nodepl_indexed, left_on='from_node', 
+    right_index=True, how='left').rename(columns={'lat':'lat_from','lon':'lon_from'})
 
-df_nodes_to = nodepl_indexed.rename(columns={'lat':'lat_to','lon':'lon_to'})
-df_supermerge = df_merge_from.merge(
-    df_nodes_to, left_on='to_node', right_index=True, how='left'
-)
+# Rename end node coordinates
+df_end_n_coord  = nodepl_indexed.rename(columns={'lat':'lat_to','lon':'lon_to'})
 
-# --- Graphen für alle Kostenfunktionen bauen ---
-cost_functions = ['distance', 'time']
-graph_dicts = {}
+# Merge start and end coordinates into arcs
+df_arc_coord  = df_start_n_coord.merge(
+    df_end_n_coord, left_on='to_node', 
+    right_index=True, how='left')
+
+
+# Define home location (Heckengasse)
+lat_home = 47.05474875321875
+lon_home = 15.43991013295609
+
+# Find the closest network node to home
+all_nodes = df_arc_coord['from_node'].unique()
+distances = ((nodepl_indexed.loc[all_nodes, 'lat'] - lat_home) ** 2 +
+             (nodepl_indexed.loc[all_nodes, 'lon'] - lon_home) ** 2)
+
+# Take the node with the smallest distance as the starting point
+start_node = distances.idxmin()
+coord_start = nodepl_indexed.loc[start_node]
+
+# ----------------------------------------
+# Building Graphs for Routing Algorithms
+# ----------------------------------------
+
+# Build graphs for all cost metrics
+cost_functions = ['distance', 'time']  # Define which metrics to use for graph weights
+graph_dicts = {}                        # Dictionary to store graphs per cost function
+
+################
 def build_graph(df, cost_col):
-    graph = {}
+    graph = {}  # Initialize empty dictionary for the graph
+
+    # Iterate over each arc (row) in the DataFrame
     for _, row in df.iterrows():
-        f = int(row['from_node'])
-        t = int(row['to_node'])
-        w = float(row[cost_col])
-        if f not in graph:
-            graph[f] = {}
-        graph[f][t] = w
+        from_node = int(row['from_node'])
+        to_node = int(row['to_node'])
+        weight = float(row[cost_col])       # Use the selected cost as edge weight
+        
+        # If the start node is not in the graph yet, add it
+        if from_node not in graph:
+            graph[from_node] = {}
+        
+        # Add the edge with its weight
+        graph[from_node][to_node] = weight
+    
+    # Ensure all nodes exist in the graph (even nodes with no outgoing arcs)
     for node_id in df['to_node'].unique():
         if node_id not in graph:
             graph[node_id] = {}
+
     return graph
 
-for cost_col in cost_functions:
-    graph_dicts[cost_col] = build_graph(df_supermerge, cost_col)
+# Build a separate graph for each cost function
+for cost in cost_functions:
+    graph_dicts[cost] = build_graph(df_arc_coord, cost)
 
 
-# Startknoten bestimmen (Home)
-#lat_home = 47.079653893334836   # humboldt
-#lon_home = 15.443076099512647
+# ----------------------------------------
+# Compute shortest paths using Dijkstras algorithm
+# ----------------------------------------
 
-#lat_home = 47.07150627200452        # annen
-#lon_home = 15.427614251514306
-
-#lat_home = 47.02381186145014        # nippel
-#lon_home = 15.426467146464514
-
-lat_home = 47.05474875321875       # hecke
-lon_home = 15.43991013295609
+# Dijkstra algorithm (based on pseudo code on course slides)
 
 
-all_nodes = df_supermerge['from_node'].unique()
-distances = ((nodepl_indexed.loc[all_nodes, 'lat'] - lat_home)**2 +
-             (nodepl_indexed.loc[all_nodes, 'lon'] - lon_home)**2)
-start_node_bike = distances.idxmin()
-coord_start = nodepl_indexed.loc[start_node_bike]
-print(f"Startknoten für Home: {start_node_bike}")
-print(f"Koordinaten: lat={coord_start['lat']}, lon={coord_start['lon']}")
+###### variablen 
 
 
-
-# Dijkstra-Algorithmus
-def dijkstra(graph, v_s):
+def dijkstra(graph, v_s): 
     T = set(graph.keys())
     l_j = {v: m.inf for v in graph}
     p_j = {}
@@ -122,158 +157,149 @@ def dijkstra(graph, v_s):
                     p_j[v_j] = v_i
     return l_j, p_j
 
+# Reconstruct the path from start to target using the predecessors
 def reconstruct_path(p_j, start, target):
-    path = [target]
-    while target in p_j:
-        target = p_j[target]
-        path.insert(0, target)
-    if path[0] != start:
+    path = [target]     # Start from the target
+    while target in p_j:        # Trace back using predecessors
+        target = p_j[target]        # Insert nodes at the beginning
+        path.insert(0, target)      # If path doesn't start with start node
+    if path[0] != start:        # No path exists
         return None
     return path
 
-# Zielknoten-IDs extrahieren
+# Extract target nodes
 targets = {
     "Basilika Mariatrost": 9328,
     "Schloss Eggenberg": 6031,
     "Murpark": 8543
 }
 
-# Koordinaten extrahieren
-for name, node_id in targets.items():
-    coords = nodepl.loc[node_id - 1]
-    print(f"{name} (Node {node_id}): lat={coords['lat']:.6f}, lon={coords['lon']:.6f}")
-
-
-
-
-# durchführen -> Pfade berechnen und für Export vorbereiten
-start_time = time.time()
+# Execute function to compute shortest paths
+start_time = time.time()        # start timer
 
 export_routes = []
 
-for cost_col in cost_functions:
-    graph = graph_dicts[cost_col]
+for cost in cost_functions:     # Loop over each cost function (distance/time)
+    graph = graph_dicts[cost]       # Get the graph for the given cost metric
     
-    l_j, p_j = dijkstra(graph, start_node_bike)
+    l_j, p_j = dijkstra(graph, start_node)
 
     for name, node_id in targets.items():
-        path = reconstruct_path(p_j, start_node_bike, node_id)
+        path = reconstruct_path(p_j, start_node, node_id)
         if path is None:
             continue
-        for idx, node in enumerate(path):
-            export_routes.append({
+        for idx, node in enumerate(path):       # Loop over nodes in path
+            export_routes.append({          # Node info for export
                 'target': name,
-                'cost_function': cost_col,
+                'cost_function': cost,
                 'seq': idx,
                 'node_id': node,
                 'lat': nodepl_indexed.loc[node, 'lat'],
                 'lon': nodepl_indexed.loc[node, 'lon']
             })
 
-end_time = time.time()
-print(f"Dijkstra Rechenzeit: {end_time - start_time:.4f} Sekunden")
+end_time = time.time()      # End timer
+print(f"Dijkstra computation time: {end_time - start_time:.4f} seconds")
 
-# In DataFrame umwandeln und exportieren
+# Convert the results to a DataFrame and export results as .csv
 df_dijkstra = pd.DataFrame(export_routes)
-
-#df_dijkstra.to_csv(os.path.join(path_results, "dijkstra_routes.csv"))
-#print("Export abgeschlossen: dijkstra_routes.csv")
-
-
-
-
+df_dijkstra.to_csv(os.path.join(path_results, "dijkstra_routes.csv"))
 
 
 # ----------------------------------------
-# A* Algorithmus (nur distance, Export für QGIS)
+# Compute shortest paths using A* Algorithm 
 # ----------------------------------------
 
+# Calculate straight-line distance between two points in km using the Haversine formula         ###quelleeee
 def haversine(lat1, lon1, lat2, lon2):
-    """Berechnet die Luftliniendistanz zwischen zwei Punkten in km (statt m)."""
-    R = 6371  # Erdradius in Metern
+    R = 6371  # Earth radius in km
     phi1, phi2 = np.radians(lat1), np.radians(lat2)
     dphi = np.radians(lat2 - lat1)
     dlambda = np.radians(lon2 - lon1)
     a = np.sin(dphi/2)**2 + np.cos(phi1)*np.cos(phi2)*np.sin(dlambda/2)**2
     return 2 * R * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
 
+# A* algorithm (based on pseudo code on course slides)
+def a_star(graph, start, desti, node_coords):
 
-def a_star_distance(graph, start, goal, node_coords):
-    """A* für DISTANCE basierend auf g + h (beides Meter)."""
-
-    g = {v: float('inf') for v in graph}
-    f = {v: float('inf') for v in graph}
-    p = {v: None for v in graph}
+    # initialize variables
+    g = {v: float('inf') for v in graph}  # l_j: cost from start to node
+    f = {v: float('inf') for v in graph}  # f_j: estimated total cost (g + h)
+    p = {v: None for v in graph}          # p_j: predecessor node
 
     g[start] = 0
-    f[start] = haversine(
+    f[start] = haversine(           # f_start = g_start + h_start (heuristic to desti)
         node_coords.loc[start, 'lat'], node_coords.loc[start, 'lon'],
-        node_coords.loc[goal, 'lat'],  node_coords.loc[goal, 'lon']
+        node_coords.loc[desti, 'lat'],  node_coords.loc[desti, 'lon']
     )
 
-    open_set = {start}
-    closed_set = set()
+    T = {start}   # T: nodes to explore
+    P = set()   # P: nodes already processed
 
-    while open_set:
-        # Knoten mit minimalem f wählen
-        vi = min(open_set, key=lambda v: f[v])
+    # --- Step 2: main loop ---
+    while T:
+        v_i = min(T, key=lambda v: f[v])        # Pick node with smallest f_j (like line 5)
 
-        # Ziel erreicht?
-        if vi == goal:
+        if v_i == desti:        # Stop if the destination is reached
             break
 
-        open_set.remove(vi)
-        closed_set.add(vi)
+        T.remove(v_i)     # remove from T
+        P.add(v_i)      # add to P
 
-        for vj, cij in graph[vi].items():
-            if vj in closed_set:
+        # --- Step 3: examine neighbors ---
+        for v_j, c_i_j in graph[v_i].items():  # for v_j in N(v_i)
+            if v_j in P:  # skip already processed nodes
                 continue
 
-            tentative_g = g[vi] + cij
+            tentative_g = g[v_i] + c_i_j  # l_i + c_ij
 
-            if tentative_g < g[vj]:
-                p[vj] = vi
-                g[vj] = tentative_g
+            # If new path is shorter (like lines 12 & 15)
+            if tentative_g < g[v_j]:
+                g[v_j] = tentative_g     # update l_j
+                p[v_j] = v_i             # update p_j
 
-                # Heuristik: reine Luftlinie (Meter)
+                # f_j = g_j + h_j (line 10, 14, 17)
                 h = haversine(
-                    node_coords.loc[vj, 'lat'], node_coords.loc[vj, 'lon'],
-                    node_coords.loc[goal, 'lat'],  node_coords.loc[goal, 'lon']
+                    node_coords.loc[v_j, 'lat'], node_coords.loc[v_j, 'lon'],
+                    node_coords.loc[desti, 'lat'], node_coords.loc[desti, 'lon']
                 )
-                f[vj] = g[vj] + h
+                f[v_j] = g[v_j] + h
 
-                open_set.add(vj)
+                T.add(v_j)        # add v_j to T if not there yet
 
-    # Pfad rekonstruieren
-    node = goal
-    if p[node] is None and node != start:
+    # Reconstruct path from desti to start ---
+    node = desti
+    if p[node] is None and node != start:  # no path exists
         return None, float('inf')
 
     path = []
     while node is not None:
-        path.insert(0, node)
+        path.insert(0, node)  # insert at beginning
         node = p[node]
 
-    return path, g[goal]
+    return path, g[desti]
 
 
 
 # ----------------------------------------
-# A* nur für DISTANCE ausführen und exportieren
+# Run A* (only for distance)
 # ----------------------------------------
 
-graph = graph_dicts["distance"]
+graph = graph_dicts["distance"]  # use distance graph
 
-start_time = time.time()
+start_time = time.time()          # start timer
 
-astar_routes = []
+a_star_routes = []
 
 for name, node_id in targets.items():
-    path, total_cost = a_star_distance(graph, start_node_bike, node_id, nodepl_indexed)
+    # find path and total cost
+    path, total_cost = a_star(graph, start_node, node_id, nodepl_indexed)
     if path is None:
-        continue
+        continue   # skip if no path found
+
+    # store path info for export
     for idx, node in enumerate(path):
-        astar_routes.append({
+        a_star_routes.append({
             'target': name,
             'cost_function': "distance_A*",
             'seq': idx,
@@ -282,26 +308,15 @@ for name, node_id in targets.items():
             'lon': nodepl_indexed.loc[node, 'lon']
         })
 
-end_time = time.time()
-print(f"A* Rechenzeit: {end_time - start_time:.4f} Sekunden")
+end_time = time.time()  # end timer
+print(f"A* computation time: {end_time - start_time:.4f} seconds")
 
-# export
-#df_astar = pd.DataFrame(astar_routes)
-#df_astar.to_csv(os.path.join(path_results, "astar_routes_distance.csv"))
-
-#print("Export abgeschlossen: astar_routes_distance.csv")
+# Convert results to DataFrame and export
+df_a_star = pd.DataFrame(a_star_routes)
+df_a_star.to_csv(os.path.join(path_results, "astar_routes_distance.csv"))
 
 
 
-# Dijkstra DataFrame erstellen
-df_dijkstra = pd.DataFrame(export_routes)
-df_dijkstra.to_csv(os.path.join(path_results, "dijkstra_routes.csv"))
-print("Export abgeschlossen: dijkstra_routes.csv")
-
-# A* DataFrame erstellen
-df_astar = pd.DataFrame(astar_routes)
-df_astar.to_csv(os.path.join(path_results, "astar_routes_distance.csv"))
-print("Export abgeschlossen: astar_routes_distance.csv")
 
 
 
@@ -337,7 +352,7 @@ for cost_col in cost_functions:
     df_subset = df_dijkstra[df_dijkstra['cost_function'] == cost_col]
     for target, group in df_subset.groupby('target'):
         path = group['node_id'].tolist()
-        length, operations = calculate_metrics(df_supermerge, path, cost_col)
+        length, operations = calculate_metrics(df_arc_coord, path, cost_col)
         df_dijkstra.loc[
             (df_dijkstra['target'] == target) &
             (df_dijkstra['cost_function'] == cost_col),
@@ -352,7 +367,7 @@ for cost_col in cost_functions:
 # Berechnung für A*
 for target, group in df_astar.groupby('target'):
     path = group['node_id'].tolist()
-    length, operations = calculate_metrics(df_supermerge, path, 'distance')
+    length, operations = calculate_metrics(df_arc_coord, path, 'distance')
     df_astar.loc[df_astar['target'] == target, 'length'] = length
     df_astar.loc[df_astar['target'] == target, 'operations'] = operations
 
@@ -364,11 +379,16 @@ print("=== A* Metriken ===")
 print_metrics(df_astar)
 
 
+end_time_total = time.time()
+print(f"Total Rechenzeit: {end_time_total - start_time_total:.4f} Sekunden")
+
 
 
 # Sources:
 # https://www.statology.org/pandas-find-closest-value/ -> find nearest node to home coordinates
 # https://www.geeksforgeeks.org/python/python-measure-time-taken-by-program-to-execute/ -> time-module for measure time taken by program to execute
+# https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html -> import files with pandas
+
 
 
 
