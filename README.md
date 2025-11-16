@@ -1,6 +1,7 @@
 # Navigation Systems, Lab01, WS2025/26, GST330UF
 
-### Authors: Kakuska, B. & & Öttl, H.
+#### Authors: Kakuska, B. & & Öttl, H.
+#### Date: 16.11.2025
 
 ## Project description
 
@@ -59,7 +60,7 @@ The A* implementation uses a geographical distance heuristic based on the Euclid
 
 ## Results and Output Explanation
 
-The program generates several output files and plots in the results/ folder for analysis and visualization:
+The program generates several output files and plots in the 'results' folder for analysis and visualization:
 
 1. Expanded Nodes Comparison (expanded_nodes_comparison.png)
 
@@ -83,18 +84,23 @@ The program generates several output files and plots in the results/ folder for 
 
 ## Sources
 
-https://www.statology.org/pandas-find-closest-value/ -> find nearest node to home coordinates
+- Statology. (2022). How to Find Closest Value in Pandas DataFrame (With Example). Retrieved November 16, 2025, from https://www.statology.org/pandas-find-closest-value/ -> find nearest node to home coordinates
 
-https://www.geeksforgeeks.org/python/python-measure-time-taken-by-program-to-execute/ -> time-module to measure time taken by program to execute
+- GeeksforGeeks. (2025). Measure time taken by program to execute in Python. Retrieved November 16, 2025, from https://www.geeksforgeeks.org/python/python-measure-time-taken-by-program-to-execute/
+-> time-module to measure time taken by program to execute
 
-https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html -> import files with pandas
+- pandas development team. (2025). pandas.read_csv — pandas documentation. Retrieved November 16, 2025, from https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html -> import files with pandas
 
-https://towardsdatascience.com/heres-how-to-calculate-distance-between-2-geolocations-in-python-93ecab5bbba4/ -> Haversine function for A* Heuristic
+- Chand, S. (2021). Here’s how to calculate distance between 2 geolocations in Python. Towards Data Science. Retrieved November 16, 2025, from https://towardsdatascience.com/heres-how-to-calculate-distance-between-2-geolocations-in-python-93ecab5bbba4/
+-> Haversine function for A* Heuristic
 
-https://matplotlib.org/stable/index.html -> for creating plots for visualisation
+- Hunter, J. D., et al. (2025). Matplotlib — Visualization with Python. Retrieved November 16, 2025, from https://matplotlib.org/stable/index.html
+-> for creating plots for visualisation
 
-Pseudocode for Dijkstra's algorithm taken from course slides ("02a_Routing.pdf", p.29).
+- Course slides: "02a_Routing.pdf", p.29. -> Pseudocode for Dijkstra's algorithm taken from course slides
 
-Pseudocode for A* algorithm taken from course slides ("02a_Routing.pdf", p.50 ).
+- Course slides: "02a_Routing.pdf", p.50. -> Pseudocode for A* algorithm taken from course slides
 
-OpenAI. (2025). ChatGPT (Version GPT-5-mini) [Large language model]. -> used for Code debugging
+- OpenAI. (2025). ChatGPT (Version GPT-5-mini) [Large language model]. Retrieved November 16, 2025, from https://openai.com/ -> used for code debugging, error detection, code cleanup, and suggestions for implementation improvements
+
+- Perplexity. (2025). Perplexity AI platform. Retrieved November 16, 2025, from https://www.perplexity.ai/ -> used for code debugging, error detection, code cleanup, and suggestions for implementation improvements
