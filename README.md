@@ -1,7 +1,6 @@
 # Navigation Systems, Lab01, WS2025/26, GST330UF
 
-#### Authors: Kakuska, B. & & Öttl, H.
-#### Date: 16.11.2025
+#### Authors: Kakuska, B. & Öttl, H.; Date: 16.11.2025
 
 ## Project description
 
