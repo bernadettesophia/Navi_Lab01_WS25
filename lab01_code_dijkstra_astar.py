@@ -86,7 +86,7 @@ df_arc_coord = df_arc_coord.loc[
 ].reset_index(drop=True)
 
 
-# Define home location (Heckengasse)
+# Define home location (Heckengasse, Graz)
 lat_home = 47.05474875321875
 lon_home = 15.43991013295609
 
@@ -115,7 +115,7 @@ print(f"Start node: {start_node} (lat={coord_start['lat']:.6f}, lon={coord_start
 cost_functions = ['distance', 'time']  # Define which metrics to use for graph weights
 graph_dicts = {}                        # Dictionary to store graphs per cost function
 
-################
+# Convert the arc DataFrame into an adjacency dictionary (graph) using the specified cost
 def build_graph(df, cost_col):
     graph = {}  # Initialize empty dictionary for the graph
 
@@ -156,7 +156,7 @@ targets = {
 # Compute shortest paths using Dijkstras algorithm
 # ----------------------------------------
 
-# Dijkstra algorithm (based on pseudo code on course slides)
+# Dijkstra algorithm (based on pseudo code of course slides)
 def dijkstra(graph, v_s):
     V = set(graph.keys())       # V -> all nodes
     T = {v_s}               # T -> set of nodes with a temporary label
@@ -216,7 +216,7 @@ def reconstruct_path(p_j, start, target):
     return None
 
 # ----------------------------------------
-# Run Dijkstra (mit Zeit pro Ziel)
+# Run Dijkstra (with time as cost)
 # ----------------------------------------
 dijkstra_expanded = {cost: {} for cost in cost_functions}
 a_star_expanded = {}
@@ -240,17 +240,20 @@ for cost in cost_functions:     # Loop over each cost function (distance/time)
         l_j, p_j, expanded_nodes, visited_set = dijkstra(graph_dicts[cost], start_node)
         dijkstra_expanded[cost][name] = visited_set
 
-        # collect only DISTANCE expansions for fair comparison
+        # collect only distance expansions for fair comparison
         if cost == "distance":
             expanded_n_dij_dist.update(visited_set)
 
+        # Reconstruct the shortest path from the start node to the current target
         path = reconstruct_path(p_j, start_node, node_id)
-        t_elapsed = time.time() - t0
+        t_elapsed = time.time() - t0  # Measure how long it took to compute this path
 
+        # If no path exists (disconnected nodes), skip to the next target
         if path is None:
             continue
-
+        # Calculate and print metrics depending on the current cost function
         if cost == "distance":
+            # Compute total distance of the path by summing the distances of each arc along the path
             total_distance = sum(
                 df_arc_coord.loc[
                     (df_arc_coord['from_node'] == path[i]) &
@@ -259,8 +262,9 @@ for cost in cost_functions:     # Loop over each cost function (distance/time)
                 ].values[0]
                 for i in range(len(path)-1)
             )
+            # Print summary: time to compute, number of expanded nodes, path length, and total distance
             print(f"  Dijkstra to {name}: time per route {t_elapsed:.6f}s, expanded nodes: {expanded_nodes}, path length: {len(path)}, total distance: {total_distance:.2f} km")
-        elif cost == "time":
+        elif cost == "time":   # Compute total travel time along the path by summing the time of each arc
             total_time = sum(
                 df_arc_coord.loc[
                     (df_arc_coord['from_node'] == path[i]) &
@@ -269,8 +273,9 @@ for cost in cost_functions:     # Loop over each cost function (distance/time)
                 ].values[0]
                 for i in range(len(path)-1)
             )
+            # Print summary: time to compute, number of expanded nodes, path length, and total time
             print(f"  Dijkstra to {name}: time per route {t_elapsed:.6f}s, expanded nodes: {expanded_nodes}, path length: {len(path)}, total time: {total_time:.2f} h")
-    print()
+    print() 
 
 
 # ----------------------------------------
@@ -357,9 +362,8 @@ def a_star(graph, start, desti, node_coords):
 
     return path, l_j[desti], len(P), P
 
-
 # ----------------------------------------
-# Run A* (distance heuristic) pro Ziel
+# Run A* (distance heuristic) per target
 # ----------------------------------------
 print(f"Running A* (distance heuristic) for each target")
 graph = graph_dicts["distance"]
@@ -391,9 +395,6 @@ for name, node_id in targets.items():
 total_a_star_time = time.time() - start_time_all
 print(f"\nTotal A* time for all targets: {total_a_star_time:.4f}s\n")
 
-
-
-
 # ----------------------------------------
 # Visualization: per-cost-function comparison for shortest distance
 # ----------------------------------------
@@ -405,12 +406,12 @@ plt.figure(figsize=(12,8))
 # Dijkstra nodes (distance)
 plt.scatter(nodepl_indexed.loc[list(dij_exp_set), 'lon'],
             nodepl_indexed.loc[list(dij_exp_set), 'lat'],
-            color='#c27e16', s=10, label='Dijkstra')
+            color='#c27e16', s=10, label=f'Dijkstra (n={len(expanded_n_dij_dist)})')
 
 # A* nodes (distance)
 plt.scatter(nodepl_indexed.loc[list(astar_exp_set), 'lon'],
             nodepl_indexed.loc[list(astar_exp_set), 'lat'],
-            color='#9a1d1d', s=10, label=f'A* (n={len(dij_exp_set)})')
+            color='#9a1d1d', s=10, label=f'A* (n={len(astar_exp_set)})')
 
 # Start node
 plt.scatter(nodepl_indexed.loc[start_node, 'lon'],
@@ -430,7 +431,6 @@ plt.savefig(file_path, dpi=300)
 
 plt.show()
 plt.close()
-
 
 # ----------------------------------------
 # Visualization: per-cost-function comparison for shortest distance to "Murpark"
@@ -455,12 +455,12 @@ plt.figure(figsize=(12,8))
 # Dijkstra nodes
 plt.scatter(nodepl_indexed.loc[list(dij_exp_set_murpark), 'lon'],
             nodepl_indexed.loc[list(dij_exp_set_murpark), 'lat'],
-            color='#c27e16', s=10, label=f'Dijkstra (n={len(dij_exp_set_murpark)})')
+            color='#c27e16', s=10, label=f'Dijkstra (n={len(expanded_dij_murpark)})')
 
 # A* nodes
 plt.scatter(nodepl_indexed.loc[list(astar_exp_set_murpark), 'lon'],
             nodepl_indexed.loc[list(astar_exp_set_murpark), 'lat'],
-            color='#9a1d1d', s=10, label=f'A* (n={len(astar_exp_set_murpark)})')
+            color='#9a1d1d', s=10, label=f'A* (n={len(expanded_a_murpark)})')
 
 # Start node
 plt.scatter(nodepl_indexed.loc[start_node, 'lon'],

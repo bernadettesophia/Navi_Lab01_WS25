@@ -1,7 +1,6 @@
-# Navigation Systems, Lab01, WS2025/26
+# Navigation Systems, Lab01, WS2025/26, GST330UF
 
-### GST330UF Geospatial Technologies
-### created by Bernadette Kakuska, 12109056 and Hannah Öttl, 11812239
+### Authors: Kakuska, B. & & Öttl, H.
 
 ## Project description
 
@@ -18,36 +17,84 @@ This project computes optimal routes in Graz using Dijkstra’s algorithm and th
     - nodelist.txt
     - arclist.txt
 
+
+## Potential Errors / Exceptions
+
+- FileNotFoundError:
+    - Input files missing or wrong path.
+- Runtime / Numerical Errors:
+    - Floating-point differences: Small variations may occur when running on different machines.
+
+## Code structure
+
+1. Imports & Setup – Libraries (os, time, math, numpy, pandas, matplotlib) are imported; input/output paths are defined.
+
+2. Data Loading & Preprocessing – Reads nodepl.txt, nodelist.txt, and arclist.txt; assigns node IDs, removes dummy nodes, merges start/end coordinates, and keeps only minimum-distance arcs per node pair.
+
+3. Start Node Selection – Determines the closest network node to the home location using coordinate comparison.
+
+4. Graph Construction – Builds adjacency dictionaries for each cost metric (distance and time) for use in routing algorithms.
+
+5. Routing Algorithms – Implements Dijkstra and A* algorithms. A* uses the Haversine formula as a straight-line distance heuristic.
+
+6. Path Reconstruction & Metrics – Reconstructs shortest paths, computes total distance, counts expanded nodes, and tracks visited nodes for visualization.
+
+7. Visualization & Export – Plots expanded nodes for Dijkstra vs A*, including full network and single-target comparisons; saves results and figures to results/.
+
 ## Heuristic used for A*
 
 The A* implementation uses a geographical distance heuristic based on the Euclidean distance between the node coordinates (φ, λ). Since the dataset provides distances in kilometers, the heuristic is also computed in kilometers to ensure consistent units throughout the algorithm.
 
 ## Approximate Runtimes
 
-- Dijkstra (six routes):  6.4454 seconds
-- A* (three routes):  0.1589 seconds
-- Full program (all routes, both algorithms): ~ 8.5 seconds
+- Dijkstra (Basilika Mariatrost): 0.136564 seconds
+- Dijkstra (Murpark):0.120757 seconds
+- Dijkstra (Schloss Eggenberg): 0.125244 seconds
+- A* (Basilika Mariatrost): 0.095032 seconds
+- A* (Murpark): 0.015579 seconds
+- A* (Schloss Eggenberg): 0.048208 seconds
+- Full program (all routes, both algorithms): ~ 0.3798 seconds
 
 (Values may differ depending on hardware.)
 
-## Potential Errors / Exceptions
+## Results and Output Explanation
 
-- FileNotFoundError: Input files missing or wrong path.
-- Runtime / Numerical Errors:
-    - Floating-point differences: Small variations may occur when running on different machines.
+The program generates several output files and plots in the results/ folder for analysis and visualization:
 
-## Code structure
+1. Expanded Nodes Comparison (expanded_nodes_comparison.png)
 
-1. Imports & Setup – Standard libraries (os, time, math) and third-party (numpy, pandas); input/output paths defined.
+    - Shows all nodes expanded by Dijkstra and A* algorithms for the distance cost.
 
-2. Data Loading – Reads nodepl.txt, nodelist.txt, and arclist.txt; merges node and arc data.
+    - Nodes expanded only by Dijkstra are marked in orange, nodes expanded only by A* in red, and nodes expanded by both algorithms in purple.
 
-3. Graph Construction – Builds adjacency dictionaries for distance and time costs (graph_dicts).
+    - The start node is highlighted with a black marker.
 
-4. Start Node Selection – Finds the closest node to the home coordinates.
+2. Target-Specific Expanded Nodes (expanded_nodes_murpark.png)
 
-5. Routing Algorithms – Implements Dijkstra and A* (with km-based heuristic).
+    - Visualizes nodes expanded when calculating the path specifically to the Murpark target.
 
-6. Path Reconstruction & Metrics – Reconstructs paths, computes total distance and number of arcs.
+    - Compares Dijkstra and A* expansions, highlighting the start node and the target node.
 
-7. Export & Visualization – Saves results to CSV files (results/) with node info, costs, and path sequence.
+    - Helps illustrate efficiency differences between the algorithms for a single route.
+
+3. CSV/Other Data 
+
+    - The program can save computed paths, total distances, and expanded node sets for further analysis if implemented.
+
+## Sources
+
+https://www.statology.org/pandas-find-closest-value/ -> find nearest node to home coordinates
+
+https://www.geeksforgeeks.org/python/python-measure-time-taken-by-program-to-execute/ -> time-module for measure time taken by program to execute
+
+https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html -> import files with pandas
+
+https://towardsdatascience.com/heres-how-to-calculate-distance-between-2-geolocations-in-python-93ecab5bbba4/ -> Haversine function for A* Heuristic
+
+https://matplotlib.org/stable/index.html -> for creating plots for visualisation
+
+Pseudocode for Dijkstra's algorithm taken from course slides ("02a_Routing.pdf", p.29).
+
+Pseudocode for A* algorithm taken from course slides ("02a_Routing.pdf", p.50 ).
+
+OpenAI. (2025). ChatGPT (Version GPT-5-mini) [Large language model]. -> used for Code debugging
