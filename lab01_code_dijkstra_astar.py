@@ -421,7 +421,7 @@ plt.scatter(nodepl_indexed.loc[start_node, 'lon'],
 plt.xlabel("Longitude")
 plt.ylabel("Latitude")
 plt.title("Comparison of Expanded Nodes: Dijkstra vs A* (Distance Cost)")
-plt.legend()
+plt.legend(loc='lower right')
 plt.axis('equal')
 
 # Save the figure
@@ -475,7 +475,7 @@ plt.scatter(nodepl_indexed.loc[target_node, 'lon'],
 plt.xlabel("Longitude")
 plt.ylabel("Latitude")
 plt.title("Expanded Nodes to Target: Murpark — Dijkstra vs A* (Distance Cost)")
-plt.legend()
+plt.legend(loc='lower right')
 plt.axis('equal')
 
 file_path = os.path.join(path_results, "expanded_nodes_murpark.png")
