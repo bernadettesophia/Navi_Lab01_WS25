@@ -85,7 +85,7 @@ The program generates several output files and plots in the results/ folder for 
 
 https://www.statology.org/pandas-find-closest-value/ -> find nearest node to home coordinates
 
-https://www.geeksforgeeks.org/python/python-measure-time-taken-by-program-to-execute/ -> time-module for measure time taken by program to execute
+https://www.geeksforgeeks.org/python/python-measure-time-taken-by-program-to-execute/ -> time-module to measure time taken by program to execute
 
 https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html -> import files with pandas
 
