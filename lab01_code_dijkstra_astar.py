@@ -227,13 +227,13 @@ expanded_n_a_dist = set()
 
 for cost in cost_functions:     # Loop over each cost function (distance/time)
     print(f"Running Dijkstra for cost: {cost}")
-    start_time_total_cost = time.time()
-    
+    start_time_total_cost = time.time() # Start timer 
+    # Run a "dummy" Dijkstra just to get total expanded nodes and runtime
     l_j_dummy, p_j_dummy, expanded_nodes_dummy, visited_set_dummy = dijkstra(graph_dicts[cost], start_node)
     
-    elapsed_total = time.time() - start_time_total_cost
+    elapsed_total = time.time() - start_time_total_cost # Calculate total time for this dummy run
     print(f"  Dijkstra total time for all targets: {elapsed_total:.4f} s, expanded nodes: {expanded_nodes_dummy}")
-
+    # Loop over each target to compute actual shortest paths
     for name, node_id in targets.items():
         t0 = time.time()  # Timer per route
 
