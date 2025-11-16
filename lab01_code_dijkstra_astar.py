@@ -222,8 +222,8 @@ dijkstra_expanded = {cost: {} for cost in cost_functions}
 a_star_expanded = {}
 
 # sets that collect ALL expanded nodes across all targets (for plotting)
-dijkstra_all_expanded = set()
-astar_all_expanded = set()
+expanded_n_dij_dist = set()
+expanded_n_a_dist = set()
 
 for cost in cost_functions:     # Loop over each cost function (distance/time)
     print(f"Running Dijkstra for cost: {cost}")
@@ -240,8 +240,9 @@ for cost in cost_functions:     # Loop over each cost function (distance/time)
         l_j, p_j, expanded_nodes, visited_set = dijkstra(graph_dicts[cost], start_node)
         dijkstra_expanded[cost][name] = visited_set
 
-        # student-friendly: statt |= verwenden wir update()
-        dijkstra_all_expanded.update(visited_set)
+        # collect only DISTANCE expansions for fair comparison
+        if cost == "distance":
+            expanded_n_dij_dist.update(visited_set)
 
         path = reconstruct_path(p_j, start_node, node_id)
         t_elapsed = time.time() - t0
@@ -310,7 +311,7 @@ def a_star(graph, start, desti, node_coords):
         # pick node with smallest f_j (slide line 5)
         v_i = min(T, key=lambda v: f_j[v])
 
-        # if destination reached → stop
+        # stop if destination is reached
         if v_i == desti:
             break
 
@@ -326,7 +327,7 @@ def a_star(graph, start, desti, node_coords):
 
             new_cost = l_j[v_i] + c_i_j   # l_i + c_ij
 
-            # if this path is better → update labels (slides lines 12 & 15)
+            # if this path is better -> update labels
             if new_cost < l_j[v_j]:
                 l_j[v_j] = new_cost       # update l_j
                 p_j[v_j] = v_i            # update p_j
@@ -369,8 +370,7 @@ for name, node_id in targets.items():
 
     path, total_cost, expanded_nodes, visited_set = a_star(graph, start_node, node_id, nodepl_indexed)
 
-    # student-friendly: statt |= verwenden wir update()
-    astar_all_expanded.update(visited_set)
+    expanded_n_a_dist.update(visited_set)
 
     t_elapsed = time.time() - t0  # time per target
     if path is None:
@@ -395,39 +395,33 @@ print(f"\nTotal A* time for all targets: {total_a_star_time:.4f}s\n")
 
 
 # ----------------------------------------
-# Visualization: per-cost-function comparison
+# Visualization: per-cost-function comparison for shortest distance
 # ----------------------------------------
-only_dij = dijkstra_all_expanded - astar_all_expanded
-only_astar = astar_all_expanded - dijkstra_all_expanded
-both = dijkstra_all_expanded & astar_all_expanded
+dij_exp_set = expanded_n_dij_dist - expanded_n_a_dist
+astar_exp_set = expanded_n_a_dist
 
-plt.figure(figsize=(12,8))  # Landscape format
+plt.figure(figsize=(12,8))
 
-# Only Dijkstra nodes
-plt.scatter(nodepl_indexed.loc[list(only_dij), 'lon'],
-            nodepl_indexed.loc[list(only_dij), 'lat'],
-            color='red', s=10, label='Only Dijkstra', alpha=0.5)
+# Dijkstra nodes (distance)
+plt.scatter(nodepl_indexed.loc[list(dij_exp_set), 'lon'],
+            nodepl_indexed.loc[list(dij_exp_set), 'lat'],
+            color='#c27e16', s=10, label='Dijkstra')
 
-# Only A* nodes
-plt.scatter(nodepl_indexed.loc[list(only_astar), 'lon'],
-            nodepl_indexed.loc[list(only_astar), 'lat'],
-            color='green', s=10, label='Only A*', alpha=0.5)
-
-# Nodes expanded by both
-plt.scatter(nodepl_indexed.loc[list(both), 'lon'],
-            nodepl_indexed.loc[list(both), 'lat'],
-            color='blue', s=10, label='Both', alpha=0.5)
+# A* nodes (distance)
+plt.scatter(nodepl_indexed.loc[list(astar_exp_set), 'lon'],
+            nodepl_indexed.loc[list(astar_exp_set), 'lat'],
+            color='#9a1d1d', s=10, label=f'A* (n={len(dij_exp_set)})')
 
 # Start node
 plt.scatter(nodepl_indexed.loc[start_node, 'lon'],
             nodepl_indexed.loc[start_node, 'lat'],
-            color='black', s=50, marker='*', label='Start Node')
+            color="#312007", s=50, marker='v', label='Start Node')
 
 plt.xlabel("Longitude")
 plt.ylabel("Latitude")
-plt.title("Expanded Nodes: Dijkstra vs A*")
+plt.title("Comparison of Expanded Nodes: Dijkstra vs A* (Distance Cost)")
 plt.legend()
-plt.axis('equal')  # optional: keeps aspect ratio proportional
+plt.axis('equal')
 
 # Save the figure
 os.makedirs(path_results, exist_ok=True)
@@ -436,4 +430,60 @@ plt.savefig(file_path, dpi=300)
 
 plt.show()
 plt.close()
+
+
+# ----------------------------------------
+# Visualization: per-cost-function comparison for shortest distance to "Murpark"
+# ----------------------------------------
+
+# Extract only the expanded nodes for “Murpark”
+target_name = "Murpark"
+target_node = targets[target_name]
+
+# Run Dijkstra for just Murpark
+_, _, _, expanded_dij_murpark = dijkstra(graph_dicts["distance"], start_node)
+
+# Run A* for just Murpark
+_, _, _, expanded_a_murpark = a_star(graph_dicts["distance"], start_node, target_node, nodepl_indexed)
+
+# Compute sets for plotting
+dij_exp_set_murpark = expanded_dij_murpark - expanded_a_murpark
+astar_exp_set_murpark = expanded_a_murpark
+
+plt.figure(figsize=(12,8))
+
+# Dijkstra nodes
+plt.scatter(nodepl_indexed.loc[list(dij_exp_set_murpark), 'lon'],
+            nodepl_indexed.loc[list(dij_exp_set_murpark), 'lat'],
+            color='#c27e16', s=10, label=f'Dijkstra (n={len(dij_exp_set_murpark)})')
+
+# A* nodes
+plt.scatter(nodepl_indexed.loc[list(astar_exp_set_murpark), 'lon'],
+            nodepl_indexed.loc[list(astar_exp_set_murpark), 'lat'],
+            color='#9a1d1d', s=10, label=f'A* (n={len(astar_exp_set_murpark)})')
+
+# Start node
+plt.scatter(nodepl_indexed.loc[start_node, 'lon'],
+            nodepl_indexed.loc[start_node, 'lat'],
+            color="#312007", s=50, marker='v', label='Start Node')
+
+# Target node (Murpark)
+plt.scatter(nodepl_indexed.loc[target_node, 'lon'],
+            nodepl_indexed.loc[target_node, 'lat'],
+            color='green', s=50, marker='X', label='Target: Murpark')
+
+plt.xlabel("Longitude")
+plt.ylabel("Latitude")
+plt.title("Expanded Nodes to Target: Murpark — Dijkstra vs A* (Distance Cost)")
+plt.legend()
+plt.axis('equal')
+
+file_path = os.path.join(path_results, "expanded_nodes_murpark.png")
+plt.savefig(file_path, dpi=300)
+
+plt.show()
+plt.close()
+
+
+
 
