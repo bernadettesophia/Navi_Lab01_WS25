@@ -1,6 +1,6 @@
 """
 Created by: Hannah Öttl and Bernadette Kakuska
-Date: 15.11.2025
+Date: 16.11.2025
 Course: Navigation Systems (WS2025, GST330UF)
 """
 
@@ -221,7 +221,7 @@ def reconstruct_path(p_j, start, target):
 dijkstra_expanded = {cost: {} for cost in cost_functions}
 a_star_expanded = {}
 
-# sets that collect ALL expanded nodes across all targets (for plotting)
+# sets that collect all expanded nodes across all targets (for plotting)
 expanded_n_dij_dist = set()
 expanded_n_a_dist = set()
 
